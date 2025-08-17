@@ -2,9 +2,9 @@ package by.task.services;
 
 import by.task.dao.Dao;
 import by.task.dao.impl.UserDao;
-import by.task.exceptions.services.EmptyUserListException;
-import by.task.exceptions.services.InvalidUserException;
-import by.task.exceptions.services.UserNotFoundException;
+import by.task.exception.services.EmptyUserListException;
+import by.task.exception.services.InvalidUserException;
+import by.task.exception.services.UserNotFoundException;
 import by.task.models.User;
 import org.apache.commons.lang3.StringUtils;
 
