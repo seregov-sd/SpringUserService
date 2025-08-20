@@ -1,4 +1,4 @@
-package by.task.models;
+package by.task.model;
 
 import jakarta.persistence.Column;
 import jakarta.persistence.Entity;
@@ -77,5 +77,20 @@ public class User {
 
     public LocalDateTime getCreatedAt() {
         return createdAt;
+    }
+
+    public void setCreatedAt(LocalDateTime createdAt) {
+        this.createdAt = createdAt;
+    }
+
+    @Override
+    public String toString() {
+        return "User{" +
+                "id=" + id +
+                ", name='" + name + '\'' +
+                ", email='" + email + '\'' +
+                ", age=" + age +
+                ", createdAt=" + createdAt +
+                '}';
     }
 }
