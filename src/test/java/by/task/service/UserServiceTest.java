@@ -1,24 +1,28 @@
-package by.task.services;
+package by.task.service;
 
-import by.task.dao.Dao;
-import by.task.exception.services.EmptyUserListException;
-import by.task.exception.services.InvalidUserException;
-import by.task.exception.services.UserNotFoundException;
-import by.task.models.User;
+import by.task.dto.UserRequestDTO;
+import by.task.dto.UserResponseDTO;
+import by.task.exception.service.EmptyUserListException;
+import by.task.exception.service.InvalidUserException;
+import by.task.exception.service.UserNotFoundException;
+import by.task.mapper.UserMapper;
+import by.task.model.User;
+import by.task.repository.UserRepository;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.extension.ExtendWith;
 import org.mockito.InjectMocks;
 import org.mockito.Mock;
 import org.mockito.junit.jupiter.MockitoExtension;
 
+import java.time.LocalDateTime;
 import java.util.Collections;
 import java.util.List;
 import java.util.Optional;
 
 import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertFalse;
+import static org.junit.jupiter.api.Assertions.assertSame;
 import static org.junit.jupiter.api.Assertions.assertThrows;
-import static org.junit.jupiter.api.Assertions.assertTrue;
 import static org.mockito.Mockito.any;
 import static org.mockito.Mockito.never;
 import static org.mockito.Mockito.verify;
@@ -28,116 +32,195 @@ import static org.mockito.Mockito.when;
 @ExtendWith(MockitoExtension.class)
 class UserServiceTest {
 
+    private static final Long USER_ID = 1L;
+    private static final Long NON_EXISTING_ID = 999L;
+    private static final String TEST_NAME = "Test User";
+    private static final String ALT_NAME = "Alt User";
+    private static final String TEST_EMAIL = "user@test.com";
+    private static final int TEST_AGE = 30;
+
     @Mock
-    private Dao<User, Long> userDao;
+    private UserRepository userRepository;
+
+    @Mock
+    private UserMapper userMapper;
 
     @InjectMocks
     private UserService userService;
 
     @Test
-    void saveUser_validUser_savesSuccessfully() {
-        User user = createValidUser();
-        userService.saveUser(user);
-        verify(userDao).save(user);
+    void createUser_ValidUser_ReturnsUserResponseDTO() {
+        UserRequestDTO requestDTO = createValidRequestDTO();
+        User userEntity = createValidUserWithoutId(); // Создаем ВАЛИДНОГО пользователя
+        User savedUser = createTestUser(USER_ID);
+        UserResponseDTO expectedResponse = createTestResponseDTO(USER_ID);
+
+        when(userMapper.toEntity(requestDTO)).thenReturn(userEntity);
+        when(userRepository.save(userEntity)).thenReturn(savedUser);
+        when(userMapper.toDTO(savedUser)).thenReturn(expectedResponse);
+
+        UserResponseDTO result = userService.createUser(requestDTO);
+
+        assertSame(expectedResponse, result);
+        verify(userMapper).toEntity(requestDTO);
+        verify(userRepository).save(userEntity);
+        verify(userMapper).toDTO(savedUser);
     }
 
     @Test
-    void saveUser_nullUser_throwsInvalidUserException() {
-        assertThrows(InvalidUserException.class, () -> userService.saveUser(null));
-        verifyNoInteractions(userDao);
+    void createUser_InvalidName_ThrowsException() {
+        UserRequestDTO invalidRequest = createValidRequestDTO();
+        invalidRequest.setName(" ");
+
+        User invalidUser = new User();
+        invalidUser.setName(" "); // Пустое имя
+
+        when(userMapper.toEntity(invalidRequest)).thenReturn(invalidUser);
+
+        assertThrows(InvalidUserException.class, () -> userService.createUser(invalidRequest));
+        verify(userMapper).toEntity(invalidRequest);
+        verifyNoInteractions(userRepository);
     }
 
     @Test
-    void saveUser_blankName_throwsInvalidUserException() {
-        User user = createValidUser();
-        user.setName("");
-        assertThrows(InvalidUserException.class, () -> userService.saveUser(user));
-        verifyNoInteractions(userDao);
+    void getUserById_ExistingUser_ReturnsUserResponseDTO() {
+        Long userId = USER_ID;
+        User user = createTestUser(userId);
+        UserResponseDTO expectedResponse = createTestResponseDTO(userId);
+
+        when(userRepository.findById(userId)).thenReturn(Optional.of(user));
+        when(userMapper.toDTO(user)).thenReturn(expectedResponse);
+
+        UserResponseDTO result = userService.getUserById(userId);
+
+        assertSame(expectedResponse, result);
+        verify(userRepository).findById(userId);
+        verify(userMapper).toDTO(user);
     }
 
     @Test
-    void getUserById_validId_returnsUser() {
-        Long id = 1L;
-        User expectedUser = createValidUser();
-        when(userDao.findById(id)).thenReturn(Optional.of(expectedUser));
+    void getUserById_NonExistingUser_ThrowsException() {
+        Long nonExistingId = NON_EXISTING_ID;
 
-        Optional<User> result = userService.getUserById(id);
-        assertTrue(result.isPresent());
-        assertEquals(expectedUser, result.get());
+        when(userRepository.findById(nonExistingId)).thenReturn(Optional.empty());
+
+        assertThrows(UserNotFoundException.class, () -> userService.getUserById(nonExistingId));
+        verify(userRepository).findById(nonExistingId);
+        verifyNoInteractions(userMapper);
     }
 
     @Test
-    void getUserById_invalidId_throwsInvalidUserException() {
-        assertThrows(InvalidUserException.class, () -> userService.getUserById(0L));
-        verifyNoInteractions(userDao);
-    }
+    void getAllUsers_WithUsers_ReturnsList() {
+        User user = createTestUser(USER_ID);
+        UserResponseDTO expectedResponse = createTestResponseDTO(USER_ID);
 
-    @Test
-    void getUserById_nonExistentId_returnsEmptyOptional() {
-        Long id = 999L;
-        when(userDao.findById(id)).thenReturn(Optional.empty());
+        when(userRepository.findAll()).thenReturn(List.of(user));
+        when(userMapper.toDTO(user)).thenReturn(expectedResponse);
 
-        Optional<User> result = userService.getUserById(id);
-        assertTrue(result.isEmpty());
-    }
+        List<UserResponseDTO> result = userService.getAllUsers();
 
-    @Test
-    void getAllUsers_nonEmptyList_returnsUsers() {
-        List<User> users = List.of(createValidUser());
-        when(userDao.findAll()).thenReturn(users);
-
-        List<User> result = userService.getAllUsers();
         assertFalse(result.isEmpty());
         assertEquals(1, result.size());
+        assertSame(expectedResponse, result.get(0));
+        verify(userRepository).findAll();
+        verify(userMapper).toDTO(user);
     }
 
     @Test
-    void getAllUsers_emptyList_throwsEmptyUserListException() {
-        when(userDao.findAll()).thenReturn(Collections.emptyList());
+    void getAllUsers_EmptyList_ThrowsException() {
+        when(userRepository.findAll()).thenReturn(Collections.emptyList());
+
         assertThrows(EmptyUserListException.class, () -> userService.getAllUsers());
+        verify(userRepository).findAll();
+        verifyNoInteractions(userMapper);
     }
 
     @Test
-    void updateUser_validUser_updatesSuccessfully() {
-        User user = createValidUser();
-        user.setId(1L);
-        when(userDao.findById(user.getId())).thenReturn(Optional.of(user));
+    void updateUser_ValidUser_UpdatesSuccessfully() {
+        Long userId = USER_ID;
+        User existingUser = createTestUser(userId);
+        existingUser.setName(TEST_NAME);
 
-        userService.updateUser(user);
-        verify(userDao).update(user);
+        UserRequestDTO updateDTO = createValidRequestDTO();
+        updateDTO.setName(ALT_NAME);
+
+        User updatedUser = createTestUser(userId);
+        updatedUser.setName(ALT_NAME);
+
+        UserResponseDTO expectedResponse = createTestResponseDTO(userId);
+        expectedResponse.setName(ALT_NAME);
+
+        when(userRepository.findById(userId)).thenReturn(Optional.of(existingUser));
+        when(userRepository.save(existingUser)).thenReturn(updatedUser);
+        when(userMapper.toDTO(updatedUser)).thenReturn(expectedResponse);
+
+        UserResponseDTO result = userService.updateUser(userId, updateDTO);
+
+        assertEquals(ALT_NAME, result.getName());
+        verify(userRepository).findById(userId);
+        verify(userMapper).updateEntityFromDTO(updateDTO, existingUser);
+        verify(userRepository).save(existingUser);
+        verify(userMapper).toDTO(updatedUser);
     }
 
     @Test
-    void updateUser_nonExistentUser_throwsUserNotFoundException() {
-        User user = createValidUser();
-        user.setId(999L);
-        when(userDao.findById(user.getId())).thenReturn(Optional.empty());
+    void deleteUser_ExistingUser_DeletesSuccessfully() {
+        Long userId = USER_ID;
 
-        assertThrows(UserNotFoundException.class, () -> userService.updateUser(user));
-        verify(userDao, never()).update(any());
+        when(userRepository.existsById(userId)).thenReturn(true);
+
+        userService.deleteUser(userId);
+
+        verify(userRepository).existsById(userId);
+        verify(userRepository).deleteById(userId);
+        verifyNoInteractions(userMapper);
     }
 
     @Test
-    void deleteUser_validUser_deletesSuccessfully() {
-        User user = createValidUser();
-        user.setId(1L);
-        when(userDao.findById(user.getId())).thenReturn(Optional.of(user));
+    void deleteUser_NonExistingUser_ThrowsException() {
+        Long nonExistingId = NON_EXISTING_ID;
 
-        userService.deleteUser(user);
-        verify(userDao).delete(user);
+        when(userRepository.existsById(nonExistingId)).thenReturn(false);
+
+        assertThrows(UserNotFoundException.class, () -> userService.deleteUser(nonExistingId));
+        verify(userRepository).existsById(nonExistingId);
+        verify(userRepository, never()).deleteById(any());
+        verifyNoInteractions(userMapper);
     }
 
-    @Test
-    void deleteUser_nonExistentUser_throwsUserNotFoundException() {
-        User user = createValidUser();
-        user.setId(999L);
-        when(userDao.findById(user.getId())).thenReturn(Optional.empty());
-
-        assertThrows(UserNotFoundException.class, () -> userService.deleteUser(user));
-        verify(userDao, never()).delete(any());
+    private User createValidUserWithoutId() {
+        User user = new User();
+        user.setName(TEST_NAME); // Устанавливаем имя
+        user.setEmail(TEST_EMAIL);
+        user.setAge(TEST_AGE);
+        return user;
     }
 
-    private User createValidUser() {
-        return new User("Valid Name", "valid@email.com", 30);
+    private UserRequestDTO createValidRequestDTO() {
+        UserRequestDTO dto = new UserRequestDTO();
+        dto.setName(TEST_NAME);
+        dto.setEmail(TEST_EMAIL);
+        dto.setAge(TEST_AGE);
+        return dto;
+    }
+
+    private User createTestUser(Long id) {
+        User user = new User();
+        user.setId(id);
+        user.setName(TEST_NAME);
+        user.setEmail(TEST_EMAIL);
+        user.setAge(TEST_AGE);
+        user.setCreatedAt(LocalDateTime.now());
+        return user;
+    }
+
+    private UserResponseDTO createTestResponseDTO(Long id) {
+        UserResponseDTO dto = new UserResponseDTO();
+        dto.setId(id);
+        dto.setName(TEST_NAME);
+        dto.setEmail(TEST_EMAIL);
+        dto.setAge(TEST_AGE);
+        dto.setCreatedAt(LocalDateTime.now());
+        return dto;
     }
 }
