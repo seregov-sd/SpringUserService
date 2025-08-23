@@ -32,12 +32,15 @@ import static org.mockito.Mockito.when;
 @ExtendWith(MockitoExtension.class)
 class UserServiceTest {
 
-    private static final Long USER_ID = 1L;
+    private static final Long ID = 1L;
     private static final Long NON_EXISTING_ID = 999L;
-    private static final String TEST_NAME = "Test User";
+    private static final String NAME = "Test User";
     private static final String ALT_NAME = "Alt User";
-    private static final String TEST_EMAIL = "user@test.com";
-    private static final int TEST_AGE = 30;
+    private static final String EMAIL = "user@test.com";
+    private static final int AGE = 30;
+    private static final String EMPTY_STRING = " ";
+    private static final int EXPECTED_LIST_SIZE = 1;
+    private static final int FIRST_ELEMENT_INDEX = 0;
 
     @Mock
     private UserRepository userRepository;
@@ -51,9 +54,9 @@ class UserServiceTest {
     @Test
     void createUser_ValidUser_ReturnsUserResponseDTO() {
         UserRequestDTO requestDTO = createValidRequestDTO();
-        User userEntity = createValidUserWithoutId(); // Создаем ВАЛИДНОГО пользователя
-        User savedUser = createTestUser(USER_ID);
-        UserResponseDTO expectedResponse = createTestResponseDTO(USER_ID);
+        User userEntity = createValidUserWithoutId();
+        User savedUser = createTestUser(ID);
+        UserResponseDTO expectedResponse = createTestResponseDTO(ID);
 
         when(userMapper.toEntity(requestDTO)).thenReturn(userEntity);
         when(userRepository.save(userEntity)).thenReturn(savedUser);
@@ -70,10 +73,10 @@ class UserServiceTest {
     @Test
     void createUser_InvalidName_ThrowsException() {
         UserRequestDTO invalidRequest = createValidRequestDTO();
-        invalidRequest.setName(" ");
+        invalidRequest.setName(EMPTY_STRING);
 
         User invalidUser = new User();
-        invalidUser.setName(" "); // Пустое имя
+        invalidUser.setName(EMPTY_STRING);
 
         when(userMapper.toEntity(invalidRequest)).thenReturn(invalidUser);
 
@@ -84,7 +87,7 @@ class UserServiceTest {
 
     @Test
     void getUserById_ExistingUser_ReturnsUserResponseDTO() {
-        Long userId = USER_ID;
+        Long userId = ID;
         User user = createTestUser(userId);
         UserResponseDTO expectedResponse = createTestResponseDTO(userId);
 
@@ -111,8 +114,8 @@ class UserServiceTest {
 
     @Test
     void getAllUsers_WithUsers_ReturnsList() {
-        User user = createTestUser(USER_ID);
-        UserResponseDTO expectedResponse = createTestResponseDTO(USER_ID);
+        User user = createTestUser(ID);
+        UserResponseDTO expectedResponse = createTestResponseDTO(ID);
 
         when(userRepository.findAll()).thenReturn(List.of(user));
         when(userMapper.toDTO(user)).thenReturn(expectedResponse);
@@ -120,8 +123,8 @@ class UserServiceTest {
         List<UserResponseDTO> result = userService.getAllUsers();
 
         assertFalse(result.isEmpty());
-        assertEquals(1, result.size());
-        assertSame(expectedResponse, result.get(0));
+        assertEquals(EXPECTED_LIST_SIZE, result.size());
+        assertSame(expectedResponse, result.get(FIRST_ELEMENT_INDEX));
         verify(userRepository).findAll();
         verify(userMapper).toDTO(user);
     }
@@ -137,9 +140,9 @@ class UserServiceTest {
 
     @Test
     void updateUser_ValidUser_UpdatesSuccessfully() {
-        Long userId = USER_ID;
+        Long userId = ID;
         User existingUser = createTestUser(userId);
-        existingUser.setName(TEST_NAME);
+        existingUser.setName(NAME);
 
         UserRequestDTO updateDTO = createValidRequestDTO();
         updateDTO.setName(ALT_NAME);
@@ -165,7 +168,7 @@ class UserServiceTest {
 
     @Test
     void deleteUser_ExistingUser_DeletesSuccessfully() {
-        Long userId = USER_ID;
+        Long userId = ID;
 
         when(userRepository.existsById(userId)).thenReturn(true);
 
@@ -190,26 +193,26 @@ class UserServiceTest {
 
     private User createValidUserWithoutId() {
         User user = new User();
-        user.setName(TEST_NAME); // Устанавливаем имя
-        user.setEmail(TEST_EMAIL);
-        user.setAge(TEST_AGE);
+        user.setName(NAME); // Устанавливаем имя
+        user.setEmail(EMAIL);
+        user.setAge(AGE);
         return user;
     }
 
     private UserRequestDTO createValidRequestDTO() {
         UserRequestDTO dto = new UserRequestDTO();
-        dto.setName(TEST_NAME);
-        dto.setEmail(TEST_EMAIL);
-        dto.setAge(TEST_AGE);
+        dto.setName(NAME);
+        dto.setEmail(EMAIL);
+        dto.setAge(AGE);
         return dto;
     }
 
     private User createTestUser(Long id) {
         User user = new User();
         user.setId(id);
-        user.setName(TEST_NAME);
-        user.setEmail(TEST_EMAIL);
-        user.setAge(TEST_AGE);
+        user.setName(NAME);
+        user.setEmail(EMAIL);
+        user.setAge(AGE);
         user.setCreatedAt(LocalDateTime.now());
         return user;
     }
@@ -217,9 +220,9 @@ class UserServiceTest {
     private UserResponseDTO createTestResponseDTO(Long id) {
         UserResponseDTO dto = new UserResponseDTO();
         dto.setId(id);
-        dto.setName(TEST_NAME);
-        dto.setEmail(TEST_EMAIL);
-        dto.setAge(TEST_AGE);
+        dto.setName(NAME);
+        dto.setEmail(EMAIL);
+        dto.setAge(AGE);
         dto.setCreatedAt(LocalDateTime.now());
         return dto;
     }

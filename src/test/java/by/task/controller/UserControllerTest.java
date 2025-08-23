@@ -44,35 +44,41 @@ class UserControllerTest {
     @MockitoBean
     private UserService userService;
 
-    private static final Long USER_ID = 1L;
-    private static final String USER_NAME = "Test User";
-    private static final String USER_EMAIL = "test@example.com";
-    private static final int USER_AGE = 30;
+    private static final Long ID = 1L;
+    private static final String NAME = "Test User";
+    private static final String EMAIL = "user@test.com";
+    private static final String INVALID_EMAIL = "invalid-email";
+    private static final int AGE = 30;
+    private static final int NEGATIVE_AGE = -1;
+    private static final String EMPTY_STRING = " ";
+
+    private static final String USERS_API_URL = "/api/users";
+    private static final String USERS_API_URL_WITH_ID = USERS_API_URL + "/{id}";
 
     @Test
     void createUser_ValidData_ReturnsCreated() throws Exception {
-        UserRequestDTO requestDTO = new UserRequestDTO(USER_NAME, USER_EMAIL, USER_AGE);
+        UserRequestDTO requestDTO = new UserRequestDTO(NAME, EMAIL, AGE);
         UserResponseDTO responseDTO = new UserResponseDTO(
-                USER_ID, USER_NAME, USER_EMAIL, USER_AGE, LocalDateTime.now()
+                ID, NAME, EMAIL, AGE, LocalDateTime.now()
         );
 
         given(userService.createUser(any(UserRequestDTO.class))).willReturn(responseDTO);
 
-        mockMvc.perform(post("/api/users")
+        mockMvc.perform(post(USERS_API_URL)
                         .contentType(MediaType.APPLICATION_JSON)
                         .content(objectMapper.writeValueAsString(requestDTO)))
                 .andExpect(status().isCreated())
-                .andExpect(jsonPath("$.id").value(USER_ID))
-                .andExpect(jsonPath("$.name").value(USER_NAME))
-                .andExpect(jsonPath("$.email").value(USER_EMAIL))
-                .andExpect(jsonPath("$.age").value(USER_AGE));
+                .andExpect(jsonPath("$.id").value(ID))
+                .andExpect(jsonPath("$.name").value(NAME))
+                .andExpect(jsonPath("$.email").value(EMAIL))
+                .andExpect(jsonPath("$.age").value(AGE));
     }
 
     @Test
     void createUser_InvalidData_ReturnsBadRequest() throws Exception {
-        UserRequestDTO invalidDTO = new UserRequestDTO(" ", "invalid-email", -1);
+        UserRequestDTO invalidDTO = new UserRequestDTO(EMPTY_STRING, INVALID_EMAIL, NEGATIVE_AGE);
 
-        mockMvc.perform(post("/api/users")
+        mockMvc.perform(post(USERS_API_URL)
                         .contentType(MediaType.APPLICATION_JSON)
                         .content(objectMapper.writeValueAsString(invalidDTO)))
                 .andExpect(status().isBadRequest())
@@ -83,39 +89,39 @@ class UserControllerTest {
 
     @Test
     void getUserById_ExistingUser_ReturnsOk() throws Exception {
-        UserResponseDTO responseDTO = new UserResponseDTO(USER_ID, USER_NAME, USER_EMAIL, USER_AGE, LocalDateTime.now());
+        UserResponseDTO responseDTO = new UserResponseDTO(ID, NAME, EMAIL, AGE, LocalDateTime.now());
 
-        given(userService.getUserById(USER_ID)).willReturn(responseDTO);
+        given(userService.getUserById(ID)).willReturn(responseDTO);
 
-        mockMvc.perform(get("/api/users/{id}", USER_ID))
+        mockMvc.perform(get(USERS_API_URL_WITH_ID, ID))
                 .andExpect(status().isOk())
-                .andExpect(jsonPath("$.id").value(USER_ID))
-                .andExpect(jsonPath("$.name").value(USER_NAME));
+                .andExpect(jsonPath("$.id").value(ID))
+                .andExpect(jsonPath("$.name").value(NAME));
     }
 
     @Test
     void getUserById_NonExistingUser_ReturnsNotFound() throws Exception {
         given(userService.getUserById(anyLong()))
-                .willThrow(new UserNotFoundException(USER_ID));
+                .willThrow(new UserNotFoundException(ID));
 
-        mockMvc.perform(get("/api/users/{id}", USER_ID))
+        mockMvc.perform(get(USERS_API_URL_WITH_ID, ID))
                 .andExpect(status().isNotFound())
                 .andExpect(jsonPath("$.error")
-                        .value("Пользователь с ID " + USER_ID + " не найден"));
+                        .value("Пользователь с ID " + ID + " не найден"));
     }
 
     @Test
     void getAllUsers_WithUsers_ReturnsOk() throws Exception {
-        UserResponseDTO user = new UserResponseDTO(USER_ID, USER_NAME, USER_EMAIL, USER_AGE, LocalDateTime.now());
+        UserResponseDTO user = new UserResponseDTO(ID, NAME, EMAIL, AGE, LocalDateTime.now());
         List<UserResponseDTO> users = List.of(user);
 
         given(userService.getAllUsers()).willReturn(users);
 
-        mockMvc.perform(get("/api/users"))
+        mockMvc.perform(get(USERS_API_URL))
                 .andExpect(status().isOk())
-                .andExpect(jsonPath("$[0].id").value(USER_ID))
-                .andExpect(jsonPath("$[0].name").value(USER_NAME))
-                .andExpect(jsonPath("$[0].email").value(USER_EMAIL));
+                .andExpect(jsonPath("$[0].id").value(ID))
+                .andExpect(jsonPath("$[0].name").value(NAME))
+                .andExpect(jsonPath("$[0].email").value(EMAIL));
     }
 
     @Test
@@ -123,52 +129,52 @@ class UserControllerTest {
         given(userService.getAllUsers())
                 .willThrow(new EmptyUserListException());
 
-        mockMvc.perform(get("/api/users"))
+        mockMvc.perform(get(USERS_API_URL))
                 .andExpect(status().isNotFound())
                 .andExpect(jsonPath("$.error").value("В системе пока нет пользователей"));
     }
 
     @Test
     void updateUser_ValidData_ReturnsOk() throws Exception {
-        UserRequestDTO requestDTO = new UserRequestDTO("Updated Name", "updated@test.com", USER_AGE);
+        UserRequestDTO requestDTO = new UserRequestDTO(NAME, EMAIL, AGE);
         UserResponseDTO responseDTO = new UserResponseDTO(
-                USER_ID, "Updated Name", "updated@test.com", USER_AGE, LocalDateTime.now()
+                ID, NAME, EMAIL, AGE, LocalDateTime.now()
         );
 
-        given(userService.updateUser(eq(USER_ID), any(UserRequestDTO.class))).willReturn(responseDTO);
+        given(userService.updateUser(eq(ID), any(UserRequestDTO.class))).willReturn(responseDTO);
 
-        mockMvc.perform(put("/api/users/{id}", USER_ID)
+        mockMvc.perform(put(USERS_API_URL_WITH_ID, ID)
                         .contentType(MediaType.APPLICATION_JSON)
                         .content(objectMapper.writeValueAsString(requestDTO)))
                 .andExpect(status().isOk())
-                .andExpect(jsonPath("$.name").value("Updated Name"))
-                .andExpect(jsonPath("$.email").value("updated@test.com"))
-                .andExpect(jsonPath("$.age").value(USER_AGE));
+                .andExpect(jsonPath("$.name").value(NAME))
+                .andExpect(jsonPath("$.email").value(EMAIL))
+                .andExpect(jsonPath("$.age").value(AGE));
     }
 
     @Test
     void deleteUser_ExistingUser_ReturnsNoContent() throws Exception {
-        doNothing().when(userService).deleteUser(USER_ID);
+        doNothing().when(userService).deleteUser(ID);
 
-        mockMvc.perform(delete("/api/users/{id}", USER_ID))
+        mockMvc.perform(delete(USERS_API_URL_WITH_ID, ID))
                 .andExpect(status().isNoContent());
     }
 
     @Test
     void deleteUser_NonExistingUser_ReturnsNotFound() throws Exception {
-        doThrow(new UserNotFoundException(USER_ID))
-                .when(userService).deleteUser(USER_ID);
+        doThrow(new UserNotFoundException(ID))
+                .when(userService).deleteUser(ID);
 
-        mockMvc.perform(delete("/api/users/{id}", USER_ID))
+        mockMvc.perform(delete(USERS_API_URL_WITH_ID, ID))
                 .andExpect(status().isNotFound())
-                .andExpect(jsonPath("$.error").value("Пользователь с ID " + USER_ID + " не найден"));
+                .andExpect(jsonPath("$.error").value("Пользователь с ID " + ID + " не найден"));
     }
 
     @Test
     void createUser_ValidationFailed_ReturnsBadRequest() throws Exception {
-        UserRequestDTO invalidDTO = new UserRequestDTO(USER_NAME, USER_EMAIL, -1);
+        UserRequestDTO invalidDTO = new UserRequestDTO(NAME, EMAIL, -1);
 
-        mockMvc.perform(post("/api/users")
+        mockMvc.perform(post(USERS_API_URL)
                         .contentType(MediaType.APPLICATION_JSON)
                         .content(objectMapper.writeValueAsString(invalidDTO)))
                 .andExpect(status().isBadRequest())
