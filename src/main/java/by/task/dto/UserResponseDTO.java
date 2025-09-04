@@ -1,10 +1,7 @@
 package by.task.dto;
 
-import org.springframework.hateoas.server.core.Relation;
-
 import java.time.LocalDateTime;
 
-@Relation(collectionRelation = "users", itemRelation = "user")
 public class UserResponseDTO {
     private Long id;
     private String name;
